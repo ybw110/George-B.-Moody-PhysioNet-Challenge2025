@@ -179,7 +179,7 @@ class MultiSourceChagasECGDataset(Dataset):
         print(f"PTB-XL抽样数: {len(ptbxl_samples)}")
 
         # CODE-15%抽样为SaMi-Trop和PTB-XL总量的3倍
-        code15_target = (samitrop_count + len(ptbxl_samples)) * 3
+        code15_target = (samitrop_count + len(ptbxl_samples)) * 5
         code15_samples = []
 
         # 为CODE-15%保持阳性/阴性样本比例

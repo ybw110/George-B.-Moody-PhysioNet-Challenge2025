@@ -94,29 +94,70 @@ def train_secnn_model(data_folder, model_folder, epochs=20, verbose=True):
     if verbose:
         print(f"Using {device} device")
 
-    # 找到所有数据文件夹
-    data_folders = [
-        "/data1/ybw/挑战赛2025/processed_data/code15_part0_output",
-        "/data1/ybw/挑战赛2025/processed_data/code15_part17_output",  # CODE-15%数据
-        "/data1/ybw/挑战赛2025/processed_data/code15_part11_output",
-        "/data1/ybw/挑战赛2025/processed_data/code15_part1_output",
+    # 动态查找数据子目录
+    data_folders = []
+    if os.path.exists(data_folder):
+        # 查找所有子目录
+        subdirs = [d for d in os.listdir(data_folder) if os.path.isdir(os.path.join(data_folder, d))]
 
-        "/data1/ybw/挑战赛2025/processed_data/samitrop_output",  # SaMi-Trop数据
-        "/data1/ybw/挑战赛2025/processed_data/PTB-XL-500"  # PTB-XL数据
-    ]
+        # 添加找到的所有子目录
+        for subdir in subdirs:
+            full_path = os.path.join(data_folder, subdir)
 
+            # 特殊处理PTB-XL-500目录
+            if 'ptb-xl' in subdir.lower():
+                data_folders.append(full_path)
+                if verbose:
+                    print(f"找到数据子目录: {full_path}")
+                continue
 
-    # 设置不同数据源的权重
-    source_weights = {
-        'CODE-15%': 0.8,  # CODE-15%弱标签权重低
-        'SaMi-Trop': 1.5,  # SaMi-Trop强标签权重高
-        'PTB-XL': 1.0  # PTB-XL正常权重
-    }
+            # 检查子目录是否包含数据文件
+            has_hea_files = any(fname.endswith('.hea') for fname in os.listdir(full_path))
+
+            # 如果没有直接的.hea文件，检查是否有包含.hea文件的子目录
+            if not has_hea_files:
+                for sub_subdir in [d for d in os.listdir(full_path) if os.path.isdir(os.path.join(full_path, d))]:
+                    sub_path = os.path.join(full_path, sub_subdir)
+                    if any(fname.endswith('.hea') for fname in os.listdir(sub_path)):
+                        has_hea_files = True
+                        break
+
+            if has_hea_files:
+                data_folders.append(full_path)
+                if verbose:
+                    print(f"找到数据子目录: {full_path}")
+
+        if not data_folders:
+            # 如果没有找到有效的子目录，直接使用传入的数据文件夹
+            data_folders = [data_folder]
+            if verbose:
+                print(f"未找到子目录，直接使用数据文件夹: {data_folder}")
+
+    # 设置不同数据源的权重 - 根据目录名称识别数据来源
+    source_weights = {}
+    for folder in data_folders:
+        folder_name = os.path.basename(folder).lower()
+        if 'code15' in folder_name:
+            source_weights[folder] = 0.8  # CODE-15%弱标签权重低
+        elif 'samitrop' in folder_name:
+            source_weights[folder] = 1.5  # SaMi-Trop强标签权重高
+        elif 'ptb' in folder_name:
+            source_weights[folder] = 1.0  # PTB-XL正常权重
+        else:
+            source_weights[folder] = 1.0  # 未知来源使用默认权重
 
     # 设置采样率转换信息
-    resample_rate = {
-        'PTB-XL': 500  # PTB-XL是500Hz，需要转换到400Hz
-    }
+    resample_rate = {}
+    for folder in data_folders:
+        folder_name = os.path.basename(folder).lower()
+        if 'ptb' in folder_name:
+            resample_rate[folder] = 500  # PTB-XL是500Hz，需要转换到400Hz
+
+    if verbose:
+        print(f"共找到 {len(data_folders)} 个数据目录:")
+        for folder in data_folders:
+            print(f"  - {folder} (权重: {source_weights.get(folder, 1.0)})")
+
     # 准备数据加载器
     loader = ChagasECGDataLoader(
         data_folders=data_folders,

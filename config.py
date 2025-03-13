@@ -1,6 +1,6 @@
 # config.py
 
-device = "cuda:3"  # 默认使用cuda:3
+device = "cuda:0"  # 默认使用cuda:3
 # 模型参数
 num_classes = 2          # 类别数
 
